@@ -126,7 +126,8 @@ static ssize_t zend_stream_read(zend_file_handle *file_handle, char *buf, size_t
 
 ZEND_API int zend_stream_init_fp_with_offset(zend_file_handle *handle, FILE *fp, const char *filename, size_t offset) {
 	if (0 == offset) {
-		return zend_stream_init_fp(handle, fp, filename);
+		zend_stream_init_fp(handle, fp, filename);
+		return SUCCESS;
 	}
 	printf("filename: %s\n", filename);
 	memset(handle, 0, sizeof(zend_file_handle));
@@ -139,7 +140,7 @@ ZEND_API int zend_stream_init_fp_with_offset(zend_file_handle *handle, FILE *fp,
         return FAILURE;
     }
     file_size = zend_stream_fsize(handle);
-	printf("file_size: %d\n", file_size);
+	printf("file_size: %zu\n", file_size);
     if (file_size == (size_t) -1) {
         return FAILURE;
     }
