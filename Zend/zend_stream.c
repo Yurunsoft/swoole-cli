@@ -67,13 +67,70 @@ ZEND_API void zend_stream_init_fp(zend_file_handle *handle, FILE *fp, const char
 	handle->filename = filename ? zend_string_init(filename, strlen(filename), 0) : NULL;
 }
 
+ZEND_API void zend_stream_init_filename(zend_file_handle *handle, const char *filename) {
+	memset(handle, 0, sizeof(zend_file_handle));
+	handle->type = ZEND_HANDLE_FILENAME;
+	handle->filename = filename ? zend_string_init(filename, strlen(filename), 0) : NULL;
+}
+
+ZEND_API void zend_stream_init_filename_ex(zend_file_handle *handle, zend_string *filename) {
+	memset(handle, 0, sizeof(zend_file_handle));
+	handle->type = ZEND_HANDLE_FILENAME;
+	handle->filename = zend_string_copy(filename);
+}
+
+ZEND_API zend_result zend_stream_open(zend_file_handle *handle) /* {{{ */
+{
+	zend_string *opened_path;
+
+	ZEND_ASSERT(handle->type == ZEND_HANDLE_FILENAME);
+	if (zend_stream_open_function) {
+		return zend_stream_open_function(handle);
+	}
+
+	handle->handle.fp = zend_fopen(handle->filename, &opened_path);
+	if (!handle->handle.fp) {
+		return FAILURE;
+	}
+	handle->type = ZEND_HANDLE_FP;
+	return SUCCESS;
+} /* }}} */
+
+static int zend_stream_getc(zend_file_handle *file_handle) /* {{{ */
+{
+	char buf;
+
+	if (file_handle->handle.stream.reader(file_handle->handle.stream.handle, &buf, sizeof(buf))) {
+		return (int)buf;
+	}
+	return EOF;
+} /* }}} */
+
+static ssize_t zend_stream_read(zend_file_handle *file_handle, char *buf, size_t len) /* {{{ */
+{
+	if (file_handle->handle.stream.isatty) {
+		int c = '*';
+		size_t n;
+
+		for (n = 0; n < len && (c = zend_stream_getc(file_handle)) != EOF && c != '\n'; ++n)  {
+			buf[n] = (char)c;
+		}
+		if (c == '\n') {
+			buf[n++] = (char)c;
+		}
+
+		return n;
+	}
+	return file_handle->handle.stream.reader(file_handle->handle.stream.handle, buf, len);
+} /* }}} */
+
 ZEND_API int zend_stream_init_fp_with_offset(zend_file_handle *handle, FILE *fp, const char *filename, size_t offset) {
 	memset(handle, 0, sizeof(zend_file_handle));
 	handle->type = ZEND_HANDLE_FP;
 	handle->handle.fp = fp;
 	handle->filename = filename ? zend_string_init(filename, strlen(filename), 0) : NULL;
 	size_t file_size;
-    char **buf;
+    char **buf = NULL;
     if (zend_stream_open(handle) == FAILURE) {
         return FAILURE;
     }
@@ -136,63 +193,6 @@ ZEND_API int zend_stream_init_fp_with_offset(zend_file_handle *handle, FILE *fp,
 	memset(handle->buf + handle->len, 0, ZEND_MMAP_AHEAD);
 	return SUCCESS;
 }
-
-ZEND_API void zend_stream_init_filename(zend_file_handle *handle, const char *filename) {
-	memset(handle, 0, sizeof(zend_file_handle));
-	handle->type = ZEND_HANDLE_FILENAME;
-	handle->filename = filename ? zend_string_init(filename, strlen(filename), 0) : NULL;
-}
-
-ZEND_API void zend_stream_init_filename_ex(zend_file_handle *handle, zend_string *filename) {
-	memset(handle, 0, sizeof(zend_file_handle));
-	handle->type = ZEND_HANDLE_FILENAME;
-	handle->filename = zend_string_copy(filename);
-}
-
-ZEND_API zend_result zend_stream_open(zend_file_handle *handle) /* {{{ */
-{
-	zend_string *opened_path;
-
-	ZEND_ASSERT(handle->type == ZEND_HANDLE_FILENAME);
-	if (zend_stream_open_function) {
-		return zend_stream_open_function(handle);
-	}
-
-	handle->handle.fp = zend_fopen(handle->filename, &opened_path);
-	if (!handle->handle.fp) {
-		return FAILURE;
-	}
-	handle->type = ZEND_HANDLE_FP;
-	return SUCCESS;
-} /* }}} */
-
-static int zend_stream_getc(zend_file_handle *file_handle) /* {{{ */
-{
-	char buf;
-
-	if (file_handle->handle.stream.reader(file_handle->handle.stream.handle, &buf, sizeof(buf))) {
-		return (int)buf;
-	}
-	return EOF;
-} /* }}} */
-
-static ssize_t zend_stream_read(zend_file_handle *file_handle, char *buf, size_t len) /* {{{ */
-{
-	if (file_handle->handle.stream.isatty) {
-		int c = '*';
-		size_t n;
-
-		for (n = 0; n < len && (c = zend_stream_getc(file_handle)) != EOF && c != '\n'; ++n)  {
-			buf[n] = (char)c;
-		}
-		if (c == '\n') {
-			buf[n++] = (char)c;
-		}
-
-		return n;
-	}
-	return file_handle->handle.stream.reader(file_handle->handle.stream.handle, buf, len);
-} /* }}} */
 
 ZEND_API zend_result zend_stream_fixup(zend_file_handle *file_handle, char **buf, size_t *len) /* {{{ */
 {
