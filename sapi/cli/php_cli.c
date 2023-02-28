@@ -594,7 +594,14 @@ static int cli_seek_file_begin(zend_file_handle *file_handle, char *script_file)
 	}
 
     size_t offset = 3;
-	zend_stream_init_fp_with_offset(file_handle, fp, script_file, offset);
+	printf("script_file: %s", script_file);
+    if (strcmp(script_file, "test.php") != 0) {
+        offset = 0;
+    }
+    int result = zend_stream_init_fp_with_offset(file_handle, fp, script_file, offset);
+	if (SUCCESS != result) {
+        return result;
+    }
 	file_handle->primary_script = 1;
 	return SUCCESS;
 }

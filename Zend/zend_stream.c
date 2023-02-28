@@ -125,6 +125,7 @@ static ssize_t zend_stream_read(zend_file_handle *file_handle, char *buf, size_t
 } /* }}} */
 
 ZEND_API int zend_stream_init_fp_with_offset(zend_file_handle *handle, FILE *fp, const char *filename, size_t offset) {
+	printf("filename: %s", filename);
 	memset(handle, 0, sizeof(zend_file_handle));
 	handle->type = ZEND_HANDLE_FP;
 	handle->handle.fp = fp;
@@ -135,6 +136,7 @@ ZEND_API int zend_stream_init_fp_with_offset(zend_file_handle *handle, FILE *fp,
         return FAILURE;
     }
     file_size = zend_stream_fsize(handle);
+	printf("file_size: %d", file_size);
     if (file_size == (size_t) -1) {
         return FAILURE;
     }
@@ -144,6 +146,7 @@ ZEND_API int zend_stream_init_fp_with_offset(zend_file_handle *handle, FILE *fp,
 	if (offset > 0) {
 		file_size -= offset;
 		zend_stream_read(handle, *buf, offset);
+		printf("*buf=%s", *buf);
 	}
 
 	if (file_size) {
@@ -189,6 +192,7 @@ ZEND_API int zend_stream_init_fp_with_offset(zend_file_handle *handle, FILE *fp,
 		*buf = erealloc(*buf, ZEND_MMAP_AHEAD);
 		handle->buf = *buf;
 	}
+	printf("handle->buf=%s", handle->buf);
 
 	memset(handle->buf + handle->len, 0, ZEND_MMAP_AHEAD);
 	return SUCCESS;
