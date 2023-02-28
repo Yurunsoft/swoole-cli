@@ -11,12 +11,12 @@ jobs:
         run: |
           git submodule update --init
           composer update
-          php prepare.php
+          SKIP_LIBRARY_DOWNLOAD=1 php prepare.php
           chmod +x ./make.sh
       - name: Build
         uses: addnab/docker-run-action@v3
         with:
-          image: phpswoole/swoole_cli_os:1.4
+          image: phpswoole/swoole_cli_os:1.5
           options: -v ${{ github.workspace }}:/work
           run: |
             cd /work
