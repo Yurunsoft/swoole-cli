@@ -10,6 +10,7 @@ jobs:
       - name: Configure
         run: |
           git submodule update --init
+          composer update
           SKIP_LIBRARY_DOWNLOAD=1 php prepare.php +mongodb +inotify
           chmod +x ./make.sh
       - name: Build
