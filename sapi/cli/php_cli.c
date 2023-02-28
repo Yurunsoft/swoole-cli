@@ -593,7 +593,8 @@ static int cli_seek_file_begin(zend_file_handle *file_handle, char *script_file)
 		return FAILURE;
 	}
 
-	zend_stream_init_fp(file_handle, fp, script_file);
+    size_t offset = 3;
+	zend_stream_init_fp_with_offset(file_handle, fp, script_file, offset);
 	file_handle->primary_script = 1;
 
     // test

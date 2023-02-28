@@ -67,6 +67,76 @@ ZEND_API void zend_stream_init_fp(zend_file_handle *handle, FILE *fp, const char
 	handle->filename = filename ? zend_string_init(filename, strlen(filename), 0) : NULL;
 }
 
+ZEND_API void zend_stream_init_fp_with_offset(zend_file_handle *handle, FILE *fp, const char *filename, size_t offset) {
+	memset(handle, 0, sizeof(zend_file_handle));
+	handle->type = ZEND_HANDLE_FP;
+	handle->handle.fp = fp;
+	handle->filename = filename ? zend_string_init(filename, strlen(filename), 0) : NULL;
+	size_t file_size;
+    char **buf;
+    if (zend_stream_open(file_handle) == FAILURE) {
+        return FAILURE;
+    }
+    file_size = zend_stream_fsize(file_handle);
+    if (file_size == (size_t) -1) {
+        return FAILURE;
+    }
+    if (file_size < offset) {
+        return FAILURE;
+    }
+	if (offset > 0) {
+		file_size -= offset;
+		zend_stream_read(file_handle, *buf, offset);
+	}
+
+	if (file_size) {
+		ssize_t read;
+		size_t size = 0;
+		*buf = safe_emalloc(1, file_size, ZEND_MMAP_AHEAD);
+		while ((read = zend_stream_read(file_handle, *buf + size, file_size - size)) > 0) {
+			size += read;
+		}
+		if (read < 0) {
+			efree(*buf);
+			return FAILURE;
+		}
+		file_handle->buf = *buf;
+		file_handle->len = size;
+	} else {
+		size_t size = 0, remain = 4*1024;
+		ssize_t read;
+		*buf = emalloc(remain);
+
+		while ((read = zend_stream_read(file_handle, *buf + size, remain)) > 0) {
+			size   += read;
+			remain -= read;
+
+			if (remain == 0) {
+				*buf   = safe_erealloc(*buf, size, 2, 0);
+				remain = size;
+			}
+		}
+		if (read < 0) {
+			efree(*buf);
+			return FAILURE;
+		}
+
+		file_handle->len = size;
+		if (size && remain < ZEND_MMAP_AHEAD) {
+			*buf = safe_erealloc(*buf, size, 1, ZEND_MMAP_AHEAD);
+		}
+		file_handle->buf = *buf;
+	}
+
+	if (file_handle->len == 0) {
+		*buf = erealloc(*buf, ZEND_MMAP_AHEAD);
+		file_handle->buf = *buf;
+	}
+
+	memset(file_handle->buf + file_handle->len, 0, ZEND_MMAP_AHEAD);
+	return SUCCESS;
+}
+
 ZEND_API void zend_stream_init_filename(zend_file_handle *handle, const char *filename) {
 	memset(handle, 0, sizeof(zend_file_handle));
 	handle->type = ZEND_HANDLE_FILENAME;
