@@ -23,7 +23,7 @@ jobs:
             ./make.sh config
             ./make.sh build
             ./bin/swoole-cli -v
-            ./bin/swoole-cli test.php
+            ./bin/swoole-cli -x 3 test.php
   cygwin:
     if: 0
     runs-on: windows-latest

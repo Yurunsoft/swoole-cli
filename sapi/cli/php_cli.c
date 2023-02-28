@@ -167,6 +167,7 @@ const opt_struct OPTIONS[] = {
     {'o', 1, "log-file"},
 	{'?', 0, "usage"},/* help alias (both '?' and 'usage') */
 	{'v', 0, "version"},
+	{'x', 1, "file offset"},
 	{'z', 1, "zend-extension"},
 	{10,  1, "rf"},
 	{10,  1, "rfunction"},
@@ -585,7 +586,7 @@ static void cli_register_file_handles(bool no_close) /* {{{ */
 static const char *param_mode_conflict = "Either execute direct code, process stdin or use a file.\n";
 
 /* {{{ cli_seek_file_begin */
-static int cli_seek_file_begin(zend_file_handle *file_handle, char *script_file)
+static int cli_seek_file_begin(zend_file_handle *file_handle, char *script_file, size_t offset)
 {
 	FILE *fp = VCWD_FOPEN(script_file, "rb");
 	if (!fp) {
@@ -593,11 +594,6 @@ static int cli_seek_file_begin(zend_file_handle *file_handle, char *script_file)
 		return FAILURE;
 	}
 
-    size_t offset = 3;
-	printf("script_file: %s", script_file);
-    if (strcmp(script_file, "test.php") != 0) {
-        offset = 0;
-    }
     int result = zend_stream_init_fp_with_offset(file_handle, fp, script_file, offset);
 	if (SUCCESS != result) {
         return result;
@@ -653,6 +649,7 @@ static int do_cli(int argc, char **argv) /* {{{ */
 	char *exec_direct=NULL, *exec_run=NULL, *exec_begin=NULL, *exec_end=NULL;
 	char *arg_free=NULL, **arg_excp=&arg_free;
 	char *script_file=NULL, *translated_path = NULL;
+    size_t offset = 0;
 	int interactive=0;
 	const char *param_error=NULL;
 	int hide_argv = 0;
@@ -763,6 +760,10 @@ static int do_cli(int argc, char **argv) /* {{{ */
 				}
 				script_file = php_optarg;
 				break;
+            
+            case 'x':
+                offset = atoi(php_optarg);
+                break;
 
 			case 'l': /* syntax check mode */
 				if (behavior != PHP_MODE_STANDARD) {
@@ -927,7 +928,7 @@ do_repeat:
 		}
 		if (script_file) {
 			virtual_cwd_activate();
-			if (cli_seek_file_begin(&file_handle, script_file) != SUCCESS) {
+			if (cli_seek_file_begin(&file_handle, script_file, offset) != SUCCESS) {
 				goto err;
 			} else {
 				char real_path[MAXPATHLEN];
@@ -1060,7 +1061,7 @@ do_repeat:
 						zend_eval_string_ex(exec_run, NULL, "Command line run code", 1);
 					} else {
 						if (script_file) {
-							if (cli_seek_file_begin(&file_handle, script_file) != SUCCESS) {
+							if (cli_seek_file_begin(&file_handle, script_file, offset) != SUCCESS) {
 								EG(exit_status) = 1;
 							} else {
 								CG(skip_shebang) = 1;
