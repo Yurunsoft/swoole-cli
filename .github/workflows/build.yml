@@ -11,7 +11,7 @@ jobs:
         run: |
           git submodule update --init
           composer update
-          SKIP_LIBRARY_DOWNLOAD=1 php prepare.php +mongodb +inotify
+          php prepare.php
           chmod +x ./make.sh
       - name: Build
         uses: addnab/docker-run-action@v3
