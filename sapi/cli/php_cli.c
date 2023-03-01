@@ -595,7 +595,7 @@ static int cli_seek_file_begin(zend_file_handle *file_handle, char *script_file)
 		return FAILURE;
 	}
 
-    zend_stream_init_fp(file_handle, fp, script_file);
+	zend_stream_init_fp(file_handle, fp, script_file);
 	file_handle->primary_script = 1;
 	return SUCCESS;
 }
@@ -664,7 +664,8 @@ static int do_cli(int argc, char **argv) /* {{{ */
 	int php_optind = 1, orig_optind = 1;
 	char *exec_direct=NULL, *exec_run=NULL, *exec_begin=NULL, *exec_end=NULL;
 	char *arg_free=NULL, **arg_excp=&arg_free;
-	char *script_file=NULL, *translated_path = NULL, *tmp_script_file = NULL;
+	char *script_file=NULL, *translated_path = NULL;
+	char *tmp_script_file = NULL;
 	bool exec_self = 0;
 	int interactive=0;
 	const char *param_error=NULL;

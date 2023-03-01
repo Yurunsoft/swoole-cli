@@ -720,6 +720,8 @@ class Preprocessor
         }
         file_put_contents($this->rootDir . '/bin/LICENSE', ob_get_clean());
 
+        copy($this->rootDir . '/scripts/dev/pack.php', $this->rootDir . '/bin/pack.php');
+
         foreach ($this->endCallbacks as $endCallback) {
             $endCallback($this);
         }
