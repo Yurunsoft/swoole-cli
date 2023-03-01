@@ -1,2 +1,2 @@
-123<?php
-echo "hello world";
+<?php
+var_dump(__FILE__);

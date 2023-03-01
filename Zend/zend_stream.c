@@ -124,40 +124,66 @@ static ssize_t zend_stream_read(zend_file_handle *file_handle, char *buf, size_t
 	return file_handle->handle.stream.reader(file_handle->handle.stream.handle, buf, len);
 } /* }}} */
 
-ZEND_API int zend_stream_init_fp_with_offset(zend_file_handle *handle, FILE *fp, const char *filename, size_t offset) {
-	if (0 == offset) {
-		zend_stream_init_fp(handle, fp, filename);
-		return SUCCESS;
-	}
-	printf("filename: %s\n", filename);
+#ifndef WORDS_BIGENDIAN
+static inline uint32_t zend_stream_pack_reverse_int32(uint32_t arg)
+{
+	uint32_t result;
+	result = ((arg & 0xFF) << 24) | ((arg & 0xFF00) << 8) | ((arg >> 8) & 0xFF00) | ((arg >> 24) & 0xFF);
+
+	return result;
+}
+
+static inline uint64_t zend_stream_pack_reverse_int64(uint64_t arg)
+{
+	union Swap64 {
+		uint64_t i;
+		uint32_t ul[2];
+	} tmp, result;
+	tmp.i = arg;
+	result.ul[0] = zend_stream_pack_reverse_int32(tmp.ul[1]);
+	result.ul[1] = zend_stream_pack_reverse_int32(tmp.ul[0]);
+
+	return result.i;
+}
+#endif
+
+ZEND_API int zend_stream_init_fp_self_begin(zend_file_handle *handle, FILE *fp, const char *filename) {
+	size_t file_size, offset, script_size;
+    char *buf = NULL;
+
+
 	memset(handle, 0, sizeof(zend_file_handle));
-	handle->type = ZEND_HANDLE_FP;
 	handle->handle.fp = fp;
 	handle->filename = filename ? zend_string_init(filename, strlen(filename), 0) : NULL;
-	size_t file_size;
-    char *buf = NULL;
-    if (zend_stream_open(handle) == FAILURE) {
-        return FAILURE;
-    }
+	handle->type = ZEND_HANDLE_STREAM;
+	handle->handle.stream.handle = handle->handle.fp;
+	handle->handle.stream.isatty = isatty(fileno((FILE *)handle->handle.stream.handle));
+	handle->handle.stream.reader = (zend_stream_reader_t)zend_stream_stdio_reader;
+	handle->handle.stream.closer = (zend_stream_closer_t)zend_stream_stdio_closer;
+	handle->handle.stream.fsizer = (zend_stream_fsizer_t)zend_stream_stdio_fsizer;
     file_size = zend_stream_fsize(handle);
-	printf("file_size: %zu\n", file_size);
     if (file_size == (size_t) -1) {
         return FAILURE;
     }
-    if (file_size < offset) {
-        return FAILURE;
-    }
-	file_size -= offset;
-	buf = safe_emalloc(1, 3, ZEND_MMAP_AHEAD);
-	zend_stream_read(handle, buf, offset);
-	efree(buf);
-	buf = NULL;
-	printf("buf=%s\n", buf);
-	if (file_size) {
+	fseek(fp, file_size - sizeof(script_size), SEEK_SET);
+	zend_stream_read(handle, (char *) &script_size, sizeof(script_size));
+#ifndef WORDS_BIGENDIAN
+	script_size = zend_stream_pack_reverse_int64(script_size);
+#endif
+	offset = file_size - script_size - sizeof(script_size);
+    // if (file_size < offset) {
+    //     return FAILURE;
+    // }
+	fseek(fp, offset, SEEK_SET);
+	// buf = safe_emalloc(1, offset, ZEND_MMAP_AHEAD);
+	// zend_stream_read(handle, buf, offset);
+	// efree(buf);
+	// buf = NULL;
+	if (script_size) {
 		ssize_t read;
 		size_t size = 0;
-		buf = safe_emalloc(1, file_size, ZEND_MMAP_AHEAD);
-		while ((read = zend_stream_read(handle, buf + size, file_size - size)) > 0) {
+		buf = safe_emalloc(1, script_size, ZEND_MMAP_AHEAD);
+		while ((read = zend_stream_read(handle, buf + size, script_size - size)) > 0) {
 			size += read;
 		}
 		if (read < 0) {
@@ -196,7 +222,6 @@ ZEND_API int zend_stream_init_fp_with_offset(zend_file_handle *handle, FILE *fp,
 		buf = erealloc(buf, ZEND_MMAP_AHEAD);
 		handle->buf = buf;
 	}
-	printf("handle->buf=%s\n", handle->buf);
 
 	memset(handle->buf + handle->len, 0, ZEND_MMAP_AHEAD);
 	return SUCCESS;
