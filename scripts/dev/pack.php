@@ -7,7 +7,7 @@ if (!defined('SWOOLE_CLI')) {
 }
 
 $argv = $_SERVER['argv'];
-if (isset($argv[2])) {
+if (!isset($argv[2])) {
     echo 'Wrong arguments! Example: ./swoole-cli pack.php your.php target', PHP_EOL;
     exit(1);
 }
