@@ -59,7 +59,7 @@ if ($p->isMacos()) {
     $p->setLogicalProcessors('$(nproc 2> /dev/null)');
 }
 
-$p->setExtraCflags(' -Os');
+$p->setExtraCflags(' -O3 -mavx2');
 
 // Generate make.sh
 $p->execute();
